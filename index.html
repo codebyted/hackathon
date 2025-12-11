@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Kenya Explain</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui; padding: 1rem; }
+    textarea { width: 100%; height: 140px; }
+    button { padding: 8px 12px; margin-top: 10px; }
+    .tabs { display: flex; gap: 8px; margin-top: 10px; }
+    .tab { padding: 6px 12px; border: 1px solid #ccc; border-radius: 20px; cursor: pointer; }
+    .active { background: #111; color: white; }
+    .card { border: 1px solid #eee; padding: 12px; margin-top: 10px; border-radius: 6px; }
+  </style>
+</head>
+<body>
+  <h2>Explain My Question 🇰🇪</h2>
+
+  <textarea id="question" placeholder="Type question..."></textarea>
+  <button id="explainBtn">Explain</button>
+
+  <div class="tabs">
+    <div class="tab active" data-lang="english">English</div>
+    <div class="tab" data-lang="kiswahili">Kiswahili</div>
+    <div class="tab" data-lang="sheng">Sheng</div>
+  </div>
+
+  <button id="ttsBtn">🔊 Read aloud</button>
+
+  <div class="card" id="output"></div>
+  <div class="card" id="keypoints"></div>
+  <div class="card" id="mistakes"></div>
+
+  <script>
+    const questionEl = document.getElementById("question");
+    const explainBtn = document.getElementById("explainBtn");
+    const outputEl = document.getElementById("output");
+    const keypointsEl = document.getElementById("keypoints");
+    const mistakesEl = document.getElementById("mistakes");
+    const ttsBtn = document.getElementById("ttsBtn");
+    const tabs = document.querySelectorAll(".tab");
+
+    let activeLang = "english";
+    let lastResult = null;
+
+    tabs.forEach(tab => {
+      tab.addEventListener("click", () => {
+        tabs.forEach(t => t.classList.remove("active"));
+        tab.classList.add("active");
+
+        activeLang = tab.dataset.lang;
+        render();
+      });
+    });
+
+    async function callExplain() {
+      const text = questionEl.value.trim();
+      if (!text) return alert("Enter a question first.");
+
+      outputEl.textContent = "Thinking...";
+      try {
+        const res = await fetch("http://localhost:8000/api/explain", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ text })
+        });
+        lastResult = await res.json();
+        render();
+      } catch {
+        outputEl.textContent = "Server error.";
+      }
+    }
+
+    function render() {
+      if (!lastResult) return;
+      outputEl.textContent = lastResult[activeLang] || "";
+      keypointsEl.textContent = "Key Points:\n• " + (lastResult.key_points || []).join("\n• ");
+      mistakesEl.textContent = "Common Mistakes:\n" + (lastResult.common_mistakes || "");
+    }
+
+    function speak(text) {
+      const utterance = new SpeechSynthesisUtterance(text);
+      speechSynthesis.cancel();
+      speechSynthesis.speak(utterance);
+    }
+
+    explainBtn.addEventListener("click", callExplain);
+    ttsBtn.addEventListener("click", () => {
+      if (lastResult) speak(lastResult[activeLang]);
+    });
+  </script>
+</body>
+</html>
